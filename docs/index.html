@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система Ленивого Контента: Карусели | @ira_and_ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --charcoal: #1C1C1E;
+            --coral: #D4736E;
+            --coral-light: #E8918C;
+            --sage: #7A9E7E;
+            --cream: #F5F0E8;
+            --cream-dim: #D9D3C7;
+            --text-primary: #F5F0E8;
+            --text-secondary: #A8A29E;
+            --text-dim: #6B6560;
+            --surface: rgba(28, 28, 30, 0.85);
+            --border: rgba(58, 58, 60, 0.6);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: #050508;
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 10000;
+        }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+        .content { position: relative; z-index: 10; }
+        .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+        @media (max-width: 600px) { .container { padding: 0 16px; } }
+
+        /* ============ HERO ============ */
+        .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .hero-content { position: relative; z-index: 2; }
+        .hero-badge { display: inline-block; border: 1px solid var(--coral); color: var(--coral); font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; padding: 8px 24px; border-radius: 100px; margin-bottom: 40px; backdrop-filter: blur(8px); background: rgba(212,115,110,0.08); }
+        .hero h1 { font-size: clamp(36px, 9vw, 68px); font-weight: 800; line-height: 0.95; letter-spacing: -3px; margin-bottom: 24px; text-shadow: 0 2px 40px rgba(0,0,0,0.5); }
+        .hero h1 .accent { color: var(--coral); }
+        .hero .subtitle { font-size: clamp(15px, 3.5vw, 18px); color: var(--text-secondary); max-width: 500px; margin: 0 auto 56px; font-weight: 400; text-shadow: 0 1px 20px rgba(0,0,0,0.5); }
+        .hero-stats { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
+        .hero-stat { text-align: center; background: rgba(5,5,8,0.5); backdrop-filter: blur(12px); padding: 16px 20px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06); }
+        .hero-stat .num { font-size: 36px; font-weight: 800; color: var(--coral); line-height: 1; }
+        .hero-stat .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
+        .scroll-hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); }
+        .scroll-arrow { width: 20px; height: 20px; border-right: 1.5px solid var(--coral); border-bottom: 1.5px solid var(--coral); transform: rotate(45deg); animation: bounce 2s ease infinite; opacity: 0.4; }
+        @keyframes bounce { 0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.3; } 50% { transform: rotate(45deg) translateY(6px); opacity: 0.6; } }
+
+        /* ============ NAV ============ */
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(5,5,8,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(58,58,60,0.3); padding: 12px 24px; display: flex; justify-content: center; gap: 20px; transform: translateY(-100%); transition: transform 0.3s; }
+        .nav.visible { transform: translateY(0); }
+        .nav a { color: var(--text-dim); text-decoration: none; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; padding: 4px 6px; }
+        .nav a:hover, .nav a.active { color: var(--coral); }
+
+        /* ============ GLASS PANELS ============ */
+        .glass-panel { background: var(--surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 20px; padding: 36px; position: relative; overflow: hidden; }
+        .glass-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(180deg, var(--coral), var(--sage)); border-radius: 4px 0 0 4px; }
+
+        /* ============ STEP SECTIONS ============ */
+        .step-section { padding: 48px 0; }
+
+        .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+        .step-num { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: var(--coral); color: #1C1C1E; font-size: 22px; font-weight: 800; border-radius: 16px; flex-shrink: 0; box-shadow: 0 0 24px rgba(212,115,110,0.3); }
+        .step-title { font-size: clamp(22px, 5vw, 30px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; }
+        .step-subtitle { font-size: 14px; color: var(--sage); font-weight: 500; margin-top: 4px; }
+
+        /* Intro text blocks */
+        .intro-block { background: var(--surface); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; margin-bottom: 32px; position: relative; overflow: hidden; border-left: 3px solid var(--sage); }
+        .intro-block p { font-size: 15px; color: var(--cream-dim); line-height: 1.8; margin-bottom: 10px; }
+        .intro-block p:last-child { margin-bottom: 0; }
+        .intro-block strong { color: var(--cream); }
+        .intro-block .hl { color: var(--coral); font-weight: 600; }
+
+        /* ============ PROMPT CARDS ============ */
+        .prompt-card { margin-bottom: 40px; }
+        .prompt-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .prompt-icon { width: 36px; height: 36px; background: rgba(212,115,110,0.15); border: 1px solid rgba(212,115,110,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; color: var(--coral); }
+        .prompt-card-title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+        .prompt-card-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.7; }
+
+        /* AI badges */
+        .ai-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .ai-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 100px; letter-spacing: 0.5px; }
+        .ai-badge.chatgpt { background: rgba(16,163,127,0.12); color: #10A37F; border: 1px solid rgba(16,163,127,0.25); }
+        .ai-badge.claude { background: rgba(212,115,110,0.12); color: var(--coral); border: 1px solid rgba(212,115,110,0.25); }
+        .ai-badge.perplexity { background: rgba(32,150,243,0.12); color: #2096F3; border: 1px solid rgba(32,150,243,0.25); }
+        .ai-badge.any { background: rgba(168,162,158,0.12); color: var(--text-secondary); border: 1px solid rgba(168,162,158,0.25); }
+        .ai-badge.nano { background: rgba(255,193,7,0.12); color: #FFC107; border: 1px solid rgba(255,193,7,0.25); }
+
+        /* Tablet */
+        .tablet { background: rgba(35, 35, 37, 0.9); backdrop-filter: blur(16px); border: 2px solid rgba(58, 58, 60, 0.8); border-radius: 20px; overflow: hidden; position: relative; box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(212,115,110,0.05); }
+        .tablet::after { content: ''; position: absolute; bottom: -1px; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--coral), transparent); opacity: 0.4; }
+        .tablet-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(58,58,60,0.5); }
+        .tablet-dots { display: flex; gap: 6px; }
+        .tablet-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(58,58,60,0.8); }
+        .tablet-dot.on { background: var(--coral); box-shadow: 0 0 8px rgba(212,115,110,0.4); }
+        .tablet-label { font-size: 11px; font-weight: 600; color: var(--coral); letter-spacing: 1.5px; text-transform: uppercase; }
+        .copy-btn { background: transparent; border: 1px solid rgba(58,58,60,0.8); color: var(--text-secondary); font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; padding: 6px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .copy-btn:hover { background: var(--coral); color: #1C1C1E; border-color: var(--coral); }
+        .copy-btn.copied { background: var(--sage); color: #1C1C1E; border-color: var(--sage); }
+        .tablet-code { padding: 24px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: var(--cream-dim); white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; }
+        .tablet-code::-webkit-scrollbar { width: 6px; }
+        .tablet-code::-webkit-scrollbar-track { background: transparent; }
+        .tablet-code::-webkit-scrollbar-thumb { background: rgba(212,115,110,0.3); border-radius: 3px; }
+
+        /* Video */
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 16px; border: 2px solid var(--border); margin-bottom: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+
+        /* Links */
+        .link-card { display: flex; align-items: center; gap: 14px; background: rgba(122, 158, 126, 0.08); border: 1px solid rgba(122, 158, 126, 0.2); border-radius: 12px; padding: 16px 20px; text-decoration: none; color: var(--cream-dim); transition: all 0.2s; margin-bottom: 16px; }
+        .link-card:hover { background: rgba(122, 158, 126, 0.15); border-color: rgba(122, 158, 126, 0.4); }
+        .link-card .link-icon { font-size: 24px; flex-shrink: 0; }
+        .link-card .link-text { font-size: 14px; font-weight: 500; }
+        .link-card .link-text span { display: block; font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+        /* Tip box */
+        .tip-box { background: rgba(122, 158, 126, 0.08); border: 1px solid rgba(122, 158, 126, 0.2); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+        .tip-box h4 { font-size: 12px; font-weight: 600; color: var(--sage); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+        .tip-box p, .tip-box li { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+        .tip-box ol, .tip-box ul { padding-left: 20px; }
+        .tip-box li strong { color: var(--cream); }
+
+        /* Note/warning box */
+        .note-box { display: flex; align-items: flex-start; gap: 10px; background: rgba(255,193,7,0.06); border: 1px solid rgba(255,193,7,0.15); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--cream-dim); margin-bottom: 16px; line-height: 1.6; }
+        .note-box .note-icon { flex-shrink: 0; font-size: 16px; line-height: 1.4; }
+        .note-box a { color: var(--coral); text-decoration: none; }
+
+        /* Sub-section header */
+        .sub-header { font-size: 16px; font-weight: 700; color: var(--sage); letter-spacing: -0.5px; margin: 40px 0 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(122,158,126,0.2); }
+
+        /* Style table */
+        .style-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+        .style-table th { text-align: left; padding: 10px 12px; background: rgba(212,115,110,0.1); color: var(--coral); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+        .style-table td { padding: 10px 12px; border-bottom: 1px solid rgba(58,58,60,0.3); color: var(--cream-dim); }
+        .style-table tr:last-child td { border-bottom: none; }
+        .style-table a { color: var(--coral); text-decoration: none; }
+
+        /* Checklist */
+        .checklist { list-style: none; padding: 0; }
+        .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; font-size: 14px; color: var(--cream-dim); border-bottom: 1px solid rgba(58,58,60,0.3); }
+        .checklist li:last-child { border-bottom: none; }
+
+        /* Divider */
+        .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 48px 0; }
+
+        /* Download button */
+        .download-bar { position: sticky; bottom: 0; z-index: 100; background: rgba(5,5,8,0.9); backdrop-filter: blur(16px); border-top: 1px solid rgba(58,58,60,0.3); padding: 16px 24px; display: flex; justify-content: center; gap: 16px; align-items: center; }
+        .download-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--sage); color: #1C1C1E; font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; padding: 12px 28px; border-radius: 10px; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
+        .download-btn:hover { background: #8DB892; transform: translateY(-1px); }
+
+        /* CTA */
+        .cta { padding: 80px 0; text-align: center; }
+        .cta-card { background: var(--surface); backdrop-filter: blur(24px); border: 1px solid var(--border); border-radius: 24px; padding: 48px 36px; position: relative; overflow: hidden; }
+        .cta-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--coral), transparent); opacity: 0.5; }
+        .cta-eyebrow { font-size: 12px; color: var(--coral); font-weight: 600; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px; }
+        .cta h2 { font-size: clamp(24px, 6vw, 40px); font-weight: 800; letter-spacing: -2px; margin-bottom: 16px; }
+        .cta .desc { font-size: 16px; color: var(--text-secondary); max-width: 460px; margin: 0 auto 36px; }
+        .cta-btn-secondary { display: inline-block; background: transparent; color: var(--coral); font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; padding: 14px 40px; border-radius: 12px; text-decoration: none; border: 1px solid var(--coral); transition: all 0.2s; }
+        .cta-btn-secondary:hover { background: rgba(212,115,110,0.1); }
+
+        .footer { padding: 40px 0; text-align: center; font-size: 13px; color: var(--text-dim); }
+        .footer a { color: var(--coral); text-decoration: none; }
+
+        /* Day result box */
+        .day-result { display: flex; align-items: center; gap: 10px; background: rgba(212,115,110,0.06); border: 1px solid rgba(212,115,110,0.15); border-radius: 10px; padding: 14px 18px; font-size: 14px; color: var(--coral); font-weight: 600; margin-bottom: 32px; }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 600px) {
+            .hero { min-height: 90vh; }
+            .hero-stats { gap: 12px; }
+            .hero-stat { padding: 12px 14px; }
+            .hero-stat .num { font-size: 28px; }
+            .glass-panel { padding: 24px; }
+            .intro-block { padding: 20px 20px; }
+            .tablet-code { font-size: 11px; padding: 16px; max-height: 300px; }
+            .cta-card { padding: 32px 20px; }
+            .step-num { width: 44px; height: 44px; font-size: 18px; }
+            .nav { gap: 8px; padding: 10px 12px; }
+            .nav a { font-size: 9px; letter-spacing: 0.5px; }
+            .download-bar { flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+    <a href="#day1">День 1</a>
+    <a href="#day2">День 2</a>
+    <a href="#day3">День 3</a>
+</nav>
+
+<!-- 3D BACKGROUND -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- CONTENT -->
+<div class="content">
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="hero-badge">full system</div>
+            <h1>СИСТЕМА<br>ЛЕНИВОГО<br><span class="accent">КОНТЕНТА</span></h1>
+            <p class="subtitle">От нуля до готовой карусели за 20 минут. Пошагово. С промптами, видео и чек-листами.</p>
+            <div class="hero-stats">
+                <div class="hero-stat"><div class="num">15+</div><div class="label">промптов</div></div>
+                <div class="hero-stat"><div class="num">3</div><div class="label">видео</div></div>
+                <div class="hero-stat"><div class="num">3</div><div class="label">дня</div></div>
+            </div>
+        </div>
+        <div class="scroll-hint"><div class="scroll-arrow"></div></div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- ПЕРЕД СТАРТОМ -->
+    <!-- ============================================ -->
+    <section class="step-section">
+        <div class="container">
+            <div class="step-header">
+                <div class="step-num" style="background: var(--sage);">?</div>
+                <div>
+                    <div class="step-title">Перед стартом</div>
+                    <div class="step-subtitle">5 минут на подготовку</div>
+                </div>
+            </div>
+
+            <div class="intro-block">
+                <p><strong>Материала много. Не пытайтесь сделать всё за один день.</strong></p>
+                <p>Мы разбили всё на <span class="hl">3 дня</span>. Каждый день &mdash; конкретный результат:</p>
+                <p><strong>День 1</strong> &mdash; ваша первая карусель (да, может кривая, но готовая)<br>
+                <strong>День 2</strong> &mdash; докрутить текст и визуал (чтобы не стыдно показать)<br>
+                <strong>День 3</strong> &mdash; система (чтобы больше никогда не сидеть перед пустым экраном)</p>
+                <p>Идите по порядку. Не перескакивайте. <span class="hl">К концу третьего дня у вас будет работающая система.</span></p>
+            </div>
+
+            <div class="glass-panel" style="margin-bottom: 32px;">
+                <div style="font-size: 14px; color: var(--cream-dim); line-height: 2.2;">
+                    <p style="font-size: 16px; font-weight: 700; color: var(--cream); margin-bottom: 16px;">Что вам понадобится</p>
+                    <p>&#10022; <strong>Любая нейросеть</strong> &mdash; ChatGPT, Claude, GigaChat, DeepSeek, YandexGPT. Все промпты из этого курса работают в любой из них. Выбирайте ту, которая у вас уже есть.</p>
+                    <p>&#10022; <strong>VPN</strong> &mdash; если используете ChatGPT или Claude, они не работают из России без VPN. GigaChat и DeepSeek работают без VPN.</p>
+                    <p>&#10022; <strong>Аккаунт в нейросети</strong> &mdash; зарегистрируйтесь заранее. Базовый доступ бесплатный.</p>
+                    <p>&#10022; <strong>Телефон или компьютер</strong> &mdash; карусели можно собирать прямо с телефона.</p>
+                </div>
+            </div>
+
+            <div class="note-box">
+                <div class="note-icon">&#128161;</div>
+                <div><strong>Что такое "промпт"?</strong> Это текст-инструкция для нейросети. Вы копируете промпт, вставляете в чат нейросети, заменяете слова в [СКОБКАХ] на свои &mdash; и получаете результат. Как шаблон письма, только для AI.</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container"><div class="divider"></div></div>
+
+    <!-- ============================================ -->
+    <!-- ДЕНЬ 1: ВАША ПЕРВАЯ КАРУСЕЛЬ -->
+    <!-- ============================================ -->
+    <section class="step-section" id="day1">
+        <div class="container">
+            <div class="step-header">
+                <div class="step-num">1</div>
+                <div>
+                    <div class="step-title">День 1: Ваша первая карусель</div>
+                    <div class="step-subtitle">Смотрим, понимаем, делаем</div>
+                </div>
+            </div>
+
+            <div class="day-result">&#127919; Результат дня: 1 готовая карусель от начала до конца</div>
+
+            <div class="intro-block">
+                <p>Вы не дизайнер. Photoshop &mdash; увы, нет. Насмотренности за 10 лет &mdash; тоже нет. Время на курсы &mdash; тоже нет.</p>
+                <p>Но карусели нужны. <strong>Не со стока</strong>, где все уже видели эту женщину с ноутбуком и мёртвой улыбкой. Свои. Красивые.</p>
+                <p>Сейчас объясню, как это работает. <span class="hl">Сначала посмотрите видео целиком</span> &mdash; увидите весь процесс от начала до конца. Потом повторите сами с промптами ниже.</p>
+            </div>
+
+            <!-- Пошаговый гайд -->
+            <div class="glass-panel" style="margin-bottom: 32px;">
+                <div style="font-size: 14px; color: var(--cream-dim); line-height: 2;">
+                    <p style="font-size: 15px; font-weight: 700; color: var(--cream); margin-bottom: 12px;">Общий план (вы это увидите в видео):</p>
+                    <p><strong style="color: var(--coral);">Шаг 1.</strong> Найти боли клиента &mdash; Агент "Детектор болей" или просто опишите нишу</p>
+                    <p><strong style="color: var(--coral);">Шаг 2.</strong> Сгенерировать текст &mdash; промпт "Генератор карусели"</p>
+                    <p><strong style="color: var(--coral);">Шаг 3.</strong> Создать визуальную метафору &mdash; промпт "Арт-дирекция"</p>
+                    <p><strong style="color: var(--coral);">Шаг 4.</strong> Сгенерировать картинки &mdash; NanoBanana / Higgsfield / ChatGPT</p>
+                    <p><strong style="color: var(--coral);">Шаг 5.</strong> Собрать карусель &mdash; Instadobry (бесплатно) или Figma</p>
+                </div>
+            </div>
+
+            <!-- Видео 1: ПЕРВЫМ -->
+            <p style="font-size: 14px; color: var(--sage); font-weight: 600; margin-bottom: 12px;">Видеоурок: весь процесс от начала до конца (посмотрите первым)</p>
+            <div class="video-container" style="margin-bottom: 32px;">
+                <iframe src="https://www.youtube.com/embed/i6usYY46K30" title="Урок 1: Базовый" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+
+            <div class="intro-block">
+                <p>Посмотрели? Теперь повторяем. <span class="hl">Копируете промпт &rarr; вставляете в нейросеть &rarr; заменяете [СКОБКИ] на своё.</span></p>
+            </div>
+
+            <!-- Детектор болей -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon" style="background: rgba(16,163,127,0.15); border-color: rgba(16,163,127,0.3); color: #10A37F;">&#x1F50D;</div>
+                    <div class="prompt-card-title">Детектор болей (CustDev)</div>
+                </div>
+                <p class="prompt-card-desc">Начните с этого. Вы описываете свою нишу &mdash; агент находит реальные боли аудитории и формулирует их словами клиента. Без этого шага все тексты будут "в молоко".</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT (агент)</span>
+                </div>
+                <div class="note-box">
+                    <div class="note-icon">&#9888;&#65039;</div>
+                    <div>Это <strong>агент в ChatGPT</strong>. Для работы нужен VPN + бесплатный аккаунт ChatGPT. Если у вас нет VPN &mdash; пропустите этот шаг и сразу переходите к "Генератору карусели", там просто опишите свою нишу и аудиторию вручную.</div>
+                </div>
+                <a class="link-card" href="https://chatgpt.com/g/g-69084d25972881918493148f729ebd5f-detektor-bolei-custdev-by-ira-ai" target="_blank">
+                    <div class="link-icon">&#x1F50D;</div>
+                    <div class="link-text">Детектор болей &mdash; CustDev by @ira_and_ai<span>Открыть в ChatGPT (нужен VPN)</span></div>
+                </a>
+            </div>
+
+            <!-- Prompt: Генератор карусели -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">01</div>
+                    <div class="prompt-card-title">Генератор карусели</div>
+                </div>
+                <p class="prompt-card-desc">Вставляете тему и аудиторию &mdash; получаете сценарий с хуком, мясом и CTA. Один промпт вместо часа мучений.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge perplexity">Perplexity</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">РОЛЬ:
+Ты - Главный Редактор вирального медиа. Ты ненавидишь "воду" и банальности.
+Твоя задача — создать сценарий Instagram-карусели (8-10 слайдов), которую невозможно пролистнуть.
+
+ВВОДНЫЕ:
+Тема: [ВСТАВЬ ТЕМУ]
+Целевая аудитория: [КТО ЧИТАЕТ]
+
+СТРОГИЕ ТРЕБОВАНИЯ К СТИЛЮ:
+Плотность: 1 слайд = 1 законченная, мощная мысль. Никаких лишних слов.
+Полярность: Текст должен быть спорным, любопытным или ломающим стереотипы.
+
+Лимиты:
+ЗАГОЛОВОК: Строго до 40 символов (жирно, капс).
+ТЕКСТ: Строго до 160 символов (1-3 предложения).
+Без банальщины: Запрещены вопросы "А вы согласны?". Запрещены фразы "Важно понимать". Только суть.
+
+СТРУКТУРА КАРУСЕЛИ (Сюжетная Арка):
+Слайд 1 (Хук): Удар по боли или провокация. Должен остановить скролл.
+Слайд 2 (Контекст): Почему это касается читателя прямо сейчас?
+Слайды 3-7 (Мясо): Разрушение мифов, инсайты, шаги.
+Слайд 8 (Вывод): Финальная точка.
+Слайд 9 (CTA): Призыв к действию.</div>
+                </div>
+            </div>
+
+            <!-- Prompt: Арт-дирекция -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">02</div>
+                    <div class="prompt-card-title">Арт-дирекция и метафоры</div>
+                </div>
+                <p class="prompt-card-desc">Главная ошибка экспертов в визуале &mdash; буквализм. Логистика = фура. Психолог = грустная девушка у окна. Это пролистывают. Этот промпт придумает <strong>визуальную метафору</strong> и напишет промпты для картинок.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">РОЛЬ:
+Ты - Креативный Директор мирового уровня и мастер визуальных метафор. Твой стиль: минимализм, умный дизайн, неочевидные ассоциации.
+
+ЗАДАЧА:
+Преврати мою тему в концепцию для Instagram-карусели, основанную на ОДНОЙ сквозной визуальной метафоре. Никаких банальностей.
+
+ВВОДНЫЕ ДАННЫЕ:
+Ниша: [НАПРИМЕР: ПСИХОТЕРАПИЯ / БРЕНД ОДЕЖДЫ]
+Тема поста: [НАПРИМЕР: КАК СПРАВИТЬСЯ С ТРЕВОГОЙ]
+Главная мысль: [НАПРИМЕР: УДАЧА - ЭТО НЕ ЛОТЕРЕЯ, А АЛГОРИТМ]
+
+ЧТО НУЖНО СДЕЛАТЬ:
+1. Предложи 3 варианта визуальной метафоры.
+2. Выбери лучшую и распиши покадровый план для 5-7 слайдов.
+
+Для каждого слайда:
+- Что изображено (Объект).
+- Как связано с темой (Смысл).
+- Промпт для генерации картинки (на английском).</div>
+                </div>
+            </div>
+
+            <!-- Инструменты -->
+            <div class="tip-box" style="margin-bottom: 16px;">
+                <h4>Где генерить картинки</h4>
+                <table class="style-table">
+                    <tr><th>Инструмент</th><th>Особенности</th></tr>
+                    <tr><td><a href="https://t.me/bananan1bot" target="_blank">NanoBanana бот</a></td><td>Telegram, быстро, от 150&#8381;</td></tr>
+                    <tr><td><a href="https://higgsfield.ai" target="_blank">Higgsfield</a></td><td>4 варианта сразу, формат 3:4</td></tr>
+                    <tr><td><a href="https://chatgpt.com" target="_blank">ChatGPT</a></td><td>Рисует прямо в чате (DALL-E, нужен VPN)</td></tr>
+                </table>
+            </div>
+            <div class="tip-box">
+                <h4>Где собрать карусель</h4>
+                <table class="style-table">
+                    <tr><td><a href="https://insta.dobry.io/" target="_blank">Instadobry</a></td><td>Бесплатно. Текст внизу, каждый пробел = новый слайд</td></tr>
+                    <tr><td><a href="https://www.figma.com" target="_blank">Figma</a></td><td>Шаблон один раз &mdash; потом дублируете</td></tr>
+                    <tr><td><a href="https://gamma.app/signup?r=9nmr42f6fh905k2" target="_blank">Gamma</a></td><td>Быстро, красиво, есть бесплатный уровень</td></tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <div class="container"><div class="divider"></div></div>
+
+    <!-- ============================================ -->
+    <!-- ДЕНЬ 2: ТЕКСТ И ВИЗУАЛ -->
+    <!-- ============================================ -->
+    <section class="step-section" id="day2">
+        <div class="container">
+            <div class="step-header">
+                <div class="step-num">2</div>
+                <div>
+                    <div class="step-title">День 2: Текст и визуал</div>
+                    <div class="step-subtitle">Чтобы звучало как вы и выглядело на миллион</div>
+                </div>
+            </div>
+
+            <div class="day-result">&#127919; Результат дня: карусель, которую не стыдно показать</div>
+
+            <div class="intro-block">
+                <p>Вчера вы сделали первую карусель. Она работает, но пока <strong>звучит как робот</strong> и выглядит как шаблон.</p>
+                <p>Сегодня докручиваем: <span class="hl">текст &mdash; чтобы звучал как вы, визуал &mdash; чтобы останавливал скролл.</span></p>
+                <p>Помните: промпт &mdash; это не финал, высеченный в камне. Это ориентир. Мы просто упрощаем рутину. Дальше докручиваем под себя.</p>
+            </div>
+
+            <!-- === ТЕКСТ === -->
+            <div class="sub-header">Текст</div>
+
+            <!-- Текст как живой человек -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">03</div>
+                    <div class="prompt-card-title">Текст как живой человек</div>
+                </div>
+                <p class="prompt-card-desc">У вас есть черновик &mdash; может кривой, может наговорили в заметки на телефон. Берёте его, добавляете промпт и получаете два варианта: мягкий и дерзкий.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge perplexity">Perplexity</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — редактор, который превращает сухие тексты в живую речь.
+
+МОИ ВВОДНЫЕ:
+Кто я: [ниша + чем занимаюсь]
+Моя ЦА: [кто они, что болит]
+Мой голос: [тёплый/дерзкий/экспертный]
+Запретные слова: [например: уникальный, качественный, данный, является]
+
+ЗАДАЧА:
+Вот мой текст карусели:
+[ВСТАВЬ ТЕКСТ]
+
+Перепиши так, чтобы:
+— Звучало как я говорю подруге за кофе
+— Каждый слайд — максимум 15 слов
+— Убрана вода, оставлено мясо
+— Сохранён мой стиль
+
+Выдай 2 варианта:
+А: Мягкий, тёплый
+Б: Дерзкий, с перчинкой</div>
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">04</div>
+                    <div class="prompt-card-title">CTA: призыв к действию</div>
+                </div>
+                <p class="prompt-card-desc">Текст готов. А чем заканчивать карусель? Вот промпт для последнего слайда &mdash; того самого, где человек решает: подписаться, сохранить или пройти мимо.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge any">Любая нейросеть</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — копирайтер уровня бог, Огилви завидовал тебе. Твои CTA не впаривают, а приглашают.
+
+МОИ ВВОДНЫЕ:
+Кто я: [ниша + продукт]
+Моя ЦА: [кто, что болит]
+
+ЦЕЛЬ КАРУСЕЛИ:
+[подписка / сохранение / комментарий / переход в ссылку / покупка]
+
+Вот текст моей карусели:
+[ВСТАВЬ ТЕКСТ]
+
+ЗАДАЧА:
+Напиши 5 вариантов последнего слайда:
+
+1. Мягкий (без давления)
+2. Конкретный (с цифрой или дедлайном)
+3. Вопросом (вовлекает в коммент)
+4. Социальное доказательство
+5. С юмором
+
+Для каждого — когда лучше использовать.</div>
+                </div>
+            </div>
+
+            <!-- Улучшатель -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">05</div>
+                    <div class="prompt-card-title">Улучшатель текста карусели</div>
+                </div>
+                <p class="prompt-card-desc">Берёт любой текст и превращает в готовый сценарий. Работает в любой нейросети &mdash; даже в GigaChat и DeepSeek.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge perplexity">Perplexity</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — профессиональный Instagram-редактор и контент-стратег.
+
+ТВОЯ ЗАДАЧА:
+Превратить мой исходный текст в готовый сценарий Instagram-карусели на 8–10 слайдов.
+
+АЛГОРИТМ:
+1. Прочитай текст, выдели ключевые идеи
+2. Разбей на шаги или тезисы
+3. Убери "воду": вводные, сложные обороты, очевидное
+4. Пиши как будто объясняешь 12-летнему
+5. Каждый слайд = ОДНА мысль
+
+СТРУКТУРА СЛАЙДА:
+СЛАЙД [номер]
+ЗАГОЛОВОК: [Максимум 5 слов]
+ТЕКСТ: [Максимум 2 коротких предложения]
+
+Слайд 1 — обложка (хук-крючок).
+Слайды 2-8 — контент (сухой, плотный).
+Последний — CTA (сохрани / подпишись / напиши).
+
+ИСХОДНЫЙ ТЕКСТ:
+[ВСТАВЬТЕ ВАШ ТЕКСТ СЮДА]</div>
+                </div>
+            </div>
+
+            <!-- Скользкая горка -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">06</div>
+                    <div class="prompt-card-title">Скользкая горка</div>
+                </div>
+                <p class="prompt-card-desc">Метод Джозефа Шугермана. Каждый слайд &mdash; незавершённый гештальт. Мозг не терпит незакрытых петель &mdash; он ОБЯЗАН листать дальше.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — копирайтер уровня Джозефа Шугермана + архитектор внимания.
+
+Задача: превратить мою карусель в "скользкую горку" — чтобы человек физически не мог остановиться.
+
+ПРИНЦИП: Каждый слайд = незавершённый гештальт. Мозг ОБЯЗАН листать дальше.
+
+ВОТ МОЯ КАРУСЕЛЬ:
+[вставь текст своих слайдов]
+
+СДЕЛАЙ:
+
+1. АУДИТ ДЫРЫ
+Найди места, где человек может уйти.
+
+2. ПЕРЕХОДНЫЕ КРЮЧКИ
+Для каждого слайда — "мост" в следующий:
+- Незаконченная мысль ("Но это не главное...")
+- Открытый вопрос ("А что если...?")
+- Обещание ("Дальше — то, что изменит всё")
+- Конфликт ("Но тут я облажалась")
+
+3. СТРУКТУРА НАПРЯЖЕНИЯ
+- Слайд 1: Удар в боль / парадокс
+- Слайды 2-3: Углубление (узнавание себя)
+- Слайд 4: Поворот
+- Слайды 5-6: Решение (каждый — крючок)
+- Финал: Незакрытая петля / CTA
+
+4. ПРОВЕРКА "3 СЕКУНДЫ"
+Каждый слайд: увидит на 3 секунды — листнёт? Если нет — переделай.
+
+ВЫДАЙ:
+| Слайд | Было | Стало | Крючок | Сила тяги 1-10 |</div>
+                </div>
+            </div>
+
+            <!-- === ВИЗУАЛ === -->
+            <div class="sub-header">Визуал</div>
+
+            <div class="intro-block">
+                <p>Формула для любой нейросети: <span class="hl">Что + Где + Свет + Стиль + Детали.</span></p>
+                <p>Плохо: "кот, киберпанк, неон"</p>
+                <p>Хорошо: <strong>"Create a photorealistic image of a white cat on a neon-lit rooftop in a cyberpunk city at night. Purple and blue lighting, cinematic style."</strong></p>
+            </div>
+
+            <!-- Loom видео — ПЕРЕД визуальными промптами -->
+            <p style="font-size: 14px; color: var(--sage); font-weight: 600; margin-bottom: 12px;">Скринкаст: как я делаю визуал (посмотрите перед промптами ниже)</p>
+            <div class="video-container" style="margin-bottom: 32px;">
+                <iframe src="https://www.loom.com/embed/bdf44b29b4714c8ea9faf161c7735381" title="Скринкаст" allowfullscreen></iframe>
+            </div>
+
+            <!-- Style DNA -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">07</div>
+                    <div class="prompt-card-title">Style DNA: украсть стиль любой картинки</div>
+                </div>
+                <p class="prompt-card-desc">Видите картинку &mdash; хотите так же. Не надо гадать. Загружаете референс &mdash; получаете полный рецепт стиля.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge perplexity">Perplexity</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">You are an art director with 15 years of experience in fashion and advertising.
+
+I'm uploading an image. Analyze its DNA like a professional.
+
+COLOR:
+- Main palette (3-4 colors, hex codes or names)
+- Warm/cold, High contrast or muted, Accent color
+
+LIGHT:
+- Direction (side, top, back, diffused)
+- Soft or hard, Natural or studio
+- Shadow type and intensity
+
+COMPOSITION:
+- Focal point, Symmetry or asymmetry
+- Negative space, Object placement
+
+TEXTURE:
+- Smooth or grainy, Matte or glossy, Film effect
+
+MOOD:
+- What emotion does it evoke
+- What brand could use this
+- One word to describe it: ______
+
+REFERENCES:
+- Looks like brand: ____
+- Looks like photographer: ____
+
+OUTPUT IN 3 FORMATS:
+1. DETAILED BREAKDOWN
+2. RECIPE FOR SERIES (copy to every new prompt)
+3. ONE-LINE TAGS (comma-separated, English)</div>
+                </div>
+            </div>
+
+            <!-- Шпаргалки -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">08</div>
+                    <div class="prompt-card-title">Визуальный арсенал: шпаргалки</div>
+                </div>
+                <p class="prompt-card-desc">Копируете одну строчку в конец промпта &mdash; меняете настроение. Комбинируйте: Style DNA + свет + камера + фотограф = ваш уникальный стиль.</p>
+
+                <div class="tip-box" style="margin-bottom: 16px;">
+                    <h4>Свет = настроение</h4>
+                    <table class="style-table">
+                        <tr><th>Хочешь</th><th>Пиши в конце промпта</th></tr>
+                        <tr><td>Уютно, тепло</td><td>soft golden hour lighting, warm ambient glow</td></tr>
+                        <tr><td>Драматично</td><td>harsh dramatic side lighting, deep shadows</td></tr>
+                        <tr><td>Чисто, профи</td><td>bright studio lighting, soft even illumination</td></tr>
+                        <tr><td>Дерзко</td><td>neon accent lighting, cyberpunk glow</td></tr>
+                        <tr><td>Винтаж</td><td>faded warm light, sun flare, 70s color cast</td></tr>
+                        <tr><td>Luxury</td><td>soft rim lighting, subtle highlights, dark moody background</td></tr>
+                    </table>
+                </div>
+                <div class="tip-box" style="margin-bottom: 16px;">
+                    <h4>Камера меняет всё</h4>
+                    <table class="style-table">
+                        <tr><th>Камера</th><th>Что даёт</th></tr>
+                        <tr><td>shot on iPhone</td><td>Честно, реально, жизнь</td></tr>
+                        <tr><td>shot on Hasselblad</td><td>Глянец, fashion, детали</td></tr>
+                        <tr><td>shot on 35mm film</td><td>Зерно, тепло, ностальгия</td></tr>
+                        <tr><td>shot on Kodak Portra 400</td><td>Мягкие цвета, плёнка</td></tr>
+                    </table>
+                </div>
+                <div class="tip-box">
+                    <h4>Стиль фотографа (пиши "in the style of...")</h4>
+                    <table class="style-table">
+                        <tr><th>Фотограф</th><th>Стиль</th></tr>
+                        <tr><td>Annie Leibovitz</td><td>Драма, глубина, как картина</td></tr>
+                        <tr><td>Peter Lindbergh</td><td>Ч/б, сила, честность</td></tr>
+                        <tr><td>Helmut Newton</td><td>Провокация, контраст</td></tr>
+                        <tr><td>Tim Walker</td><td>Сюрреализм, сказка</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Адаптатор мемов -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">09</div>
+                    <div class="prompt-card-title">Адаптатор мемов</div>
+                </div>
+                <p class="prompt-card-desc">Берёт любой мем и адаптирует под вашу нишу. 5 вариантов.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — креативщик и мем-стратег. Задача — взять мем и адаптировать под нужную тематику, сохранив вирусный потенциал.
+
+АЛГОРИТМ:
+1. Разбери структуру мема (сетап → панчлайн)
+2. Пойми, почему он смешной
+3. Найди параллели в нужной тематике
+4. Сохрани механику, поменяй контекст
+5. Проверь: смешно ли без объяснений?
+
+ЧТО МНЕ НУЖНО ОТ ТЕБЯ:
+
+МЕМ: [опиши что на картинке и текст]
+ТЕМАТИКА: [под что адаптировать]
+СТИЛЬ ЮМОРА: [самоирония / сарказм / абсурд / жиза]
+АУДИТОРИЯ: [кто будет смотреть]
+
+Выдай 5 вариантов. Для каждого — почему зайдёт.
+В конце: лучший + описание визуала.</div>
+                </div>
+            </div>
+
+            <!-- Делитель на слайды -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">10</div>
+                    <div class="prompt-card-title">Делитель на слайды</div>
+                </div>
+                <p class="prompt-card-desc">Берёт текст и разбивает на слайды с заголовками. Готовый сценарий для генератора картинок.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge any">Любая нейросеть</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">You are a professional Instagram editor and content strategist.
+
+Your Goal: Transform my source text into a structured scenario for an 8–10 slide Instagram carousel.
+
+Process:
+1. Read the source text and identify key concepts.
+2. Break them down into sequential steps or distinct theses.
+3. Remove all "fluff." Write simply, as if for a 12-year-old.
+
+Strict Slide Structure:
+SLIDE #
+HEADER: [Short, punchy, max 5 words]
+TEXT: [Max 2 short sentences. Readable in 5 seconds.]
+
+Rules:
+* Slide 1 = hook header (intriguing).
+* Last Slide = clear CTA.
+* Text must be dry, dense, concise.
+
+Source text:
+[INSERT YOUR TEXT HERE]</div>
+                </div>
+            </div>
+
+            <!-- Промпт для дизайна -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">11</div>
+                    <div class="prompt-card-title">Промпт для дизайна слайдов</div>
+                </div>
+                <p class="prompt-card-desc">Берёт текст карусели + стиль и генерирует промпты для картинок каждого слайда. Текст прямо на картинке.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Act as an expert AI Prompt Engineer for image generators.
+
+Goal: Create image prompts for a cohesive Instagram carousel, combining text content with a visual style.
+
+Instructions:
+1. Analyze the STYLE REFERENCE deeply.
+2. For each slide, generate a detailed image prompt.
+3. CRITICAL: Each prompt MUST render HEADER and TEXT on the image.
+4. Ensure visual consistency across all slides.
+5. Aspect ratio 4:5 (1080x1350px).
+
+INPUT 1: STYLE REFERENCE
+[INSERT STYLE DESCRIPTION HERE]
+
+INPUT 2: CAROUSEL CONTENT
+[PASTE SLIDE TEXTS HERE]
+
+Output: Numbered list of ready-to-use image prompts.</div>
+                </div>
+            </div>
+
+            <!-- NanoBanana бонус -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon" style="background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.25); color: #FFC107;">+</div>
+                    <div class="prompt-card-title" style="color: #FFC107;">Бонус: фиксация текста в NanoBanana</div>
+                </div>
+                <p class="prompt-card-desc">Почему NanoBanana меняет текст? Если текст не зафиксирован как immutable content, модель считает его частью визуала и "улучшает". Вот решение.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge nano">NanoBanana Pro</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Бонус</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">INTENT:
+Generate a visual image with fixed text content.
+
+CONTENT LOCK:
+The following text must remain exactly as written.
+Do not rewrite, paraphrase, enhance, or correct it.
+
+TEXT:
+"[ВАШ ТЕКСТ]"
+
+VISUAL:
+Centered composition.
+Text inside a clean rectangular area.
+Dark background. High contrast.
+
+STYLE:
+Luxury editorial. Minimal. Premium aesthetic.
+
+NEGATIVE:
+No text rewriting. No slogan variation.
+No additional words. No typography distortion.</div>
+                </div>
+            </div>
+
+            <!-- Чек-лист -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon" style="background: rgba(122,158,126,0.15); border-color: rgba(122,158,126,0.3); color: var(--sage);">&#10003;</div>
+                    <div class="prompt-card-title">Чек-лист перед публикацией</div>
+                </div>
+                <p class="prompt-card-desc">Перед тем как нажать "опубликовать" &mdash; пройдись по пунктам.</p>
+                <div class="glass-panel">
+                    <ul class="checklist">
+                        <li><span style="color: var(--sage);">&#9744;</span> Цель поста можно назвать одним словом</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Заголовок читается за 2 секунды, есть крючок</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Идею карусели можно сказать одним предложением</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Один слайд &mdash; одна мысль, короткие предложения</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> После каждого слайда хочется листать дальше</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Картинка останавливает взгляд</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Есть мысль, к которой хочется вернуться</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> CTA простой и не слишком продажный</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Звучит как я, а не как шаблон</li>
+                        <li><span style="color: var(--sage);">&#9744;</span> Проверил(а) превью с телефона</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container"><div class="divider"></div></div>
+
+    <!-- ============================================ -->
+    <!-- ДЕНЬ 3: СИСТЕМА + МАСТЕР-УРОВЕНЬ -->
+    <!-- ============================================ -->
+    <section class="step-section" id="day3">
+        <div class="container">
+            <div class="step-header">
+                <div class="step-num">3</div>
+                <div>
+                    <div class="step-title">День 3: Система и мастерство</div>
+                    <div class="step-subtitle">Контент на недели вперёд + один промпт для всего</div>
+                </div>
+            </div>
+
+            <div class="day-result">&#127919; Результат дня: система, чтобы никогда не сидеть перед пустым экраном</div>
+
+            <div class="intro-block">
+                <p>Одну карусель вы уже можете сделать. Теперь вопрос: <strong>о чём писать завтра? И послезавтра? И через неделю?</strong></p>
+                <p>Контент-план не берётся из воздуха. Он строится на смыслах: кто ваш клиент, откуда он идёт, какие боли на каждом этапе.</p>
+                <p><span class="hl">Сначала посмотрите видео с продвинутыми техниками, а потом используйте промпты ниже.</span></p>
+            </div>
+
+            <!-- Видео 2: ПЕРВЫМ в дне 3 -->
+            <p style="font-size: 14px; color: var(--sage); font-weight: 600; margin-bottom: 12px;">Видеоурок: продвинутые техники (посмотрите первым)</p>
+            <div class="video-container" style="margin-bottom: 32px;">
+                <iframe src="https://www.youtube.com/embed/mMDr6kUFG98" title="Урок 2: Продвинутый" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+
+            <!-- Идеи на месяц -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">12</div>
+                    <div class="prompt-card-title">Идеи на месяц за 10 минут</div>
+                </div>
+                <p class="prompt-card-desc">Когда в голове пусто. Важный нюанс: не просите сразу 30 тем. Нейросеть начнёт лениться. Идём в горизонт неделя: 5-7 тем. Нужно больше &mdash; просите частями.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge any">Любая нейросеть</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — контент-стратег.
+
+МОИ ВВОДНЫЕ:
+Кто я: [ниша, продукт, опыт]
+Моя ЦА: [кто они]
+Их боли: [3 главных]
+Их желания: [чего хотят]
+Мой продукт: [что продаю]
+
+ЗАДАЧА:
+Сгенерируй 7 тем для каруселей на неделю:
+
+— 2 темы на боль (цепляют за проблему)
+— 2 темы на пользу (хочется сохранить)
+— 2 темы личные (история, закулисье)
+— 1 тема на продажу (мягкий прогрев)
+
+Для каждой:
+— Хук (первый слайд)
+— Почему зацепит мою ЦА</div>
+                </div>
+            </div>
+
+            <!-- Генератор контент-плана -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">13</div>
+                    <div class="prompt-card-title">Генератор контент-плана</div>
+                </div>
+                <p class="prompt-card-desc">Глубокий промпт. Сначала задаст вам вопросы про бизнес и аудиторию, потом выдаст матрицу тем на месяцы вперёд.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — контент-стратег с 10-летним опытом.
+
+ТВОЯ ЗАДАЧА:
+1. Задать мне вопросы, чтобы понять бизнес и аудиторию
+2. Создать МАТРИЦУ КОНТЕНТА — таблицу тем на месяцы
+
+ШАГ 1: ВОПРОСЫ (жди ответа на каждый блок):
+
+БЛОК 1: Ниша, продукт, результат клиента
+БЛОК 2: Путь клиента (точка А → точка Б, этапы)
+БЛОК 3: Аудитория (боли, страхи, возражения)
+БЛОК 4: Контент-пиллары (3-5 тем блога)
+БЛОК 5: Цели (охват / прогрев / продажа / лояльность)
+
+ШАГ 2: МАТРИЦА
+
+Вертикаль: Этапы пути клиента
+Горизонталь: Типы контента
+| Нельзя | Техника | Убийцы | Быстро | Навсегда | Без X |
+
+БОНУС: 5 тем для немедленного использования.
+
+Начинай с вопросов. По одному блоку.</div>
+                </div>
+            </div>
+
+            <!-- Генератор идей -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">14</div>
+                    <div class="prompt-card-title">Генератор идей</div>
+                </div>
+                <p class="prompt-card-desc">Есть тема из контент-плана? Этот промпт даст 10 идей с разными углами: провокация, страх, польза, инсайт, история, эксперимент.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge any">Любая нейросеть</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Промпт</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">Ты — креативный контент-стратег. Задача: одна тема → 10 идей с разными углами подачи.
+
+ТЕМА: [вставьте тему]
+КОНТЕКСТ: [аудитория, боли, тон]
+ФОРМАТ: [карусель / рилс / пост / универсально]
+ЦЕЛЬ: [охват / прогрев / продажа / вовлечение]
+
+УГЛЫ: Провокация | Страх | Польза | Инсайт | История | Эксперимент | Ошибки | Инструкция | Сравнение | Мнение
+
+Для каждой идеи:
+- Название, Угол, Заголовок
+- Суть (2 предложения)
+- Крючок (первая фраза)
+- Почему сработает
+
+В конце: ТОП-3 для выбранной цели.</div>
+                </div>
+            </div>
+
+            <!-- Агент-шпион -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon">15</div>
+                    <div class="prompt-card-title">Агент-шпион по каруселям</div>
+                </div>
+                <p class="prompt-card-desc">Люди копируют <strong>форму</strong>, а не механику. Поэтому получают ноль охватов. Этот агент делает рентген чужого контента и выдаёт 3 идеи, адаптированные под вас.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT (агент)</span>
+                </div>
+                <div class="note-box">
+                    <div class="note-icon">&#9888;&#65039;</div>
+                    <div>Это <strong>агент в ChatGPT</strong>. Для работы нужен VPN + бесплатный аккаунт ChatGPT. Если у вас нет VPN &mdash; используйте промпт "Генератор идей" выше, он работает в любой нейросети.</div>
+                </div>
+                <a class="link-card" href="https://chatgpt.com/g/g-693c1707970481919ed918884215e703-agent-shpion-dlia-karuselei" target="_blank">
+                    <div class="link-icon">&#x1F575;&#xFE0F;</div>
+                    <div class="link-text">Агент-шпион для каруселей<span>Открыть в ChatGPT (нужен VPN)</span></div>
+                </a>
+            </div>
+
+            <!-- Sub-header: мастер-уровень -->
+            <div class="sub-header">Мастер-уровень</div>
+
+            <div class="intro-block">
+                <p>Вы уже поработали с болями аудитории, улучшали тексты, разобрались с типами каруселей. <strong>У вас есть база.</strong></p>
+                <p>Master Prompt ведёт вас пошагово: от брифинга до готовых слайдов. Механика "Скользкой горки" уже встроена.</p>
+                <p>Когда у вас будут 3-4 проработанных Core Style &mdash; процесс будет выглядеть так: <span class="hl">открыли чат, вставили стиль + тему &mdash; слайды готовы за 10-15 минут.</span></p>
+            </div>
+
+            <!-- Master Prompt -->
+            <div class="prompt-card">
+                <div class="prompt-card-header">
+                    <div class="prompt-icon" style="background: rgba(212,115,110,0.25); font-size: 11px; font-weight: 800;">MP</div>
+                    <div class="prompt-card-title">Master Prompt</div>
+                </div>
+                <p class="prompt-card-desc">Один промпт, который ведёт вас через 5 этапов: брифинг &rarr; визуальное ДНК &rarr; сценарий &rarr; тест обложки &rarr; тиражирование.</p>
+                <div class="ai-badges">
+                    <span class="ai-badge chatgpt">ChatGPT</span>
+                    <span class="ai-badge claude">Claude</span>
+                    <span class="ai-badge any">GigaChat, DeepSeek</span>
+                </div>
+                <div class="tablet">
+                    <div class="tablet-bar">
+                        <div class="tablet-dots"><div class="tablet-dot on"></div><div class="tablet-dot"></div><div class="tablet-dot"></div></div>
+                        <span class="tablet-label">Master Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Скопировать</button>
+                    </div>
+                    <div class="tablet-code">SYSTEM ROLE:
+Ты — профессиональный AI Арт-директор и Контент-стратег. Visual Consistency. Следишь, чтобы стиль не менялся от слайда к слайду.
+
+ГЛАВНЫЙ ЗАКОН:
+Ведешь меня строго пошагово. ЗАПРЕЩЕНО выдавать следующий этап, пока я не утвердил текущий.
+
+ЭТАП 1: БРИФИНГ
+Задай 4 вопроса:
+1. Твоя ниша (Кто ты?)
+2. Целевая аудитория (Боли и желания)
+3. Tone of Voice (Стиль общения)
+4. Нейросеть для картинок (Midjourney, DALL-E, Ideogram, Flux?)
+СТОП. Жди ответа.
+
+ЭТАП 2: ВИЗУАЛЬНОЕ ДНК
+Попроси: "Загрузи 3-5 референсов стиля."
+Найди общий знаменатель. Составь Формулу Стиля:
+* Palette (hex) * Art Style * Typography * Atmosphere
+Спроси: "Стиль подходит? Идем к сценарию?"
+СТОП. Жди утверждения.
+
+ЭТАП 3: СЦЕНАРИЙ
+5-7 слайдов, метод "Скользкая горка".
+Таблица: № | Текст на слайде | Описание картинки
+СТОП. Жди утверждения.
+
+ЭТАП 4: КАСТИНГ СТИЛЯ
+Промпт ТОЛЬКО для обложки (Слайд 1).
+"Сгенерируй 2-4 варианта."
+СТОП. Жди выбора.
+
+ЭТАП 5: ТИРАЖИРОВАНИЕ
+Когда скажу "Обложка ОК":
+Промпты для всех слайдов.
+Каждый начинается с Формулы Стиля из Этапа 2.
+
+Начни с ЭТАПА 1.</div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="container"><div class="divider"></div></div>
+
+    <!-- CTA: Hub 2.0 -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-card">
+                <p class="cta-eyebrow">Следующий уровень</p>
+                <h2>Карусели 2.0</h2>
+                <p class="desc">Живое ведение. Разборы ваших каруселей. Обратная связь каждую неделю. Март 2026.</p>
+                <a class="cta-btn-secondary" href="#">Записаться в предзапись</a>
+            </div>
+        </div>
+    </section>
+
+    <div class="footer">
+        <div class="container">
+            <a href="https://instagram.com/ira_and_ai" target="_blank">@ira_and_ai</a> &mdash; Система Ленивого Контента
+        </div>
+    </div>
+
+</div>
+
+<!-- DOWNLOAD BAR (sticky bottom) -->
+<div class="download-bar" id="downloadBar" style="display: none;">
+    <span style="font-size: 13px; color: var(--text-dim);">Все промпты в одном файле</span>
+    <button class="download-btn" onclick="downloadPrompts()">&#x2B07; Скачать промпты</button>
+</div>
+
+<!-- SCRIPTS -->
+<script>
+function copyPrompt(btn) {
+    const code = btn.closest('.tablet').querySelector('.tablet-code');
+    navigator.clipboard.writeText(code.innerText).then(() => {
+        btn.textContent = 'Скопировано!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Скопировать'; btn.classList.remove('copied'); }, 2000);
+    });
+}
+
+// Collect all prompts and download as txt
+function downloadPrompts() {
+    const tablets = document.querySelectorAll('.tablet-code');
+    const headers = document.querySelectorAll('.prompt-card-title');
+    let text = 'СИСТЕМА ЛЕНИВОГО КОНТЕНТА: КАРУСЕЛИ\n@ira_and_ai\n\n';
+    text += '='.repeat(60) + '\n\n';
+    tablets.forEach((t, i) => {
+        const title = headers[i] ? headers[i].textContent : 'Промпт ' + (i+1);
+        text += '▸ ' + title.toUpperCase() + '\n';
+        text += '-'.repeat(40) + '\n\n';
+        text += t.innerText + '\n\n';
+        text += '='.repeat(60) + '\n\n';
+    });
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sistema-lenivogo-kontenta-prompts.txt';
+    a.click();
+}
+
+// Nav + download bar
+const nav = document.getElementById('nav');
+const downloadBar = document.getElementById('downloadBar');
+window.addEventListener('scroll', () => {
+    const show = window.scrollY > window.innerHeight * 0.8;
+    nav.classList.toggle('visible', show);
+    downloadBar.style.display = show ? 'flex' : 'none';
+});
+
+// Active nav
+const sections = document.querySelectorAll('.step-section[id]');
+const navLinks = document.querySelectorAll('.nav a');
+window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 200) current = s.id; });
+    navLinks.forEach(a => { a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
+});
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const PALETTE = {
+    screenBG: new THREE.Color(0x2a1d1d), screenLight: new THREE.Color(0xffaa90),
+    screenHighlight: new THREE.Color(0xff4d4d), gloveDark: new THREE.Color(0x2b2b30),
+    gloveGreen: new THREE.Color(0x556b60), glovePad: new THREE.Color(0x7da08c),
+    skin: new THREE.Color(0xbd8e82), wire: new THREE.Color(0x1a1a1a)
+};
+const VS = 1, GAP = 0.05;
+const canvas = document.getElementById('bg-canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050508);
+scene.fog = new THREE.FogExp2(0x050508, 0.015);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, 24, 32);
+camera.lookAt(0, 0, 0);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ReinhardToneMapping;
+const sl = new THREE.PointLight(0xff7e6b, 200, 50);
+sl.position.set(0, 2, 0); scene.add(sl);
+scene.add(new THREE.AmbientLight(0x404060, 0.5));
+const ml = new THREE.DirectionalLight(0xaaccff, 0.5);
+ml.position.set(-10, 20, -10); scene.add(ml);
+const voxels = [];
+function av(x,y,z,c){voxels.push({x,y,z,color:c})}
+function buildTablet(){const w=26,h=18;for(let x=-w/2;x<w/2;x++)for(let y=-h/2;y<h/2;y++){av(x,0,y,PALETTE.gloveDark);if(x<=-w/2+1||x>=w/2-2||y<=-h/2+1||y>=h/2-2)av(x,1,y,PALETTE.gloveGreen);else{av(x,1,y,PALETTE.screenBG);if(Math.random()>0.85)av(x,1.2,y,Math.random()>0.5?PALETTE.screenLight:PALETTE.screenHighlight)}}for(let x=-8;x<-3;x++)for(let y=-4;y<4;y++)av(x,1.2,y,PALETTE.screenHighlight);for(let y=-5;y<5;y+=2)for(let x=2;x<9;x++)av(x,1.2,y,PALETTE.screenLight)}
+function buildHand(L){const s=L?-1:1,oX=L?-16:16,oZ=8;for(let x=0;x<6;x++)for(let y=0;y<4;y++)for(let z=0;z<5;z++)av((x*s)+oX,y-2,z+oZ+4,PALETTE.gloveGreen);for(let x=0;x<5;x++)for(let y=0;y<2;y++)for(let z=0;z<6;z++)av((x*s)+oX+(s*2),y,z+oZ,PALETTE.gloveDark);for(let x=1;x<4;x++)for(let z=1;z<5;z++){av((x*s)+oX+(s*2),2,z+oZ,PALETTE.glovePad);if(x===2&&z===3)av((x*s)+oX+(s*2),2.2,z+oZ,new THREE.Color(0x00ff00))}const fp=[0,1.5,3,4.5],fl=[4,5,4.5,3.5];fp.forEach((f,i)=>{const len=fl[i],sX=L?oX-3:oX+7,sZ=oZ+f;for(let l=0;l<len;l++){let yC=0;if(l>1)yC=-1;if(l>3)yC=-2;let xP=L?sX+l:sX-l;av(xP,yC,sZ,PALETTE.skin);if(l<3)av(xP,yC+1,sZ,PALETTE.gloveDark);if(l===0)av(xP,yC+1.5,sZ,PALETTE.glovePad)}});const tX=L?oX+1:oX+3;for(let l=0;l<4;l++)av(L?tX+l:tX-l,1,oZ-2+(l*0.5),PALETTE.gloveDark);const wC=L?-1:1;for(let i=0;i<8;i++){av(oX+(s*3),-1-i,oZ+8+(i*2),PALETTE.wire);av(oX+(s*3)+wC,-2-i,oZ+8+(i*1.5),PALETTE.wire)}}
+buildTablet();buildHand(true);buildHand(false);
+const geo=new THREE.BoxGeometry(VS-GAP,VS-GAP,VS-GAP);
+const mat=new THREE.MeshStandardMaterial({roughness:0.5,metalness:0.1});
+const mesh=new THREE.InstancedMesh(geo,mat,voxels.length);
+const dummy=new THREE.Object3D();
+voxels.forEach((v,i)=>{dummy.position.set(v.x*VS,v.y*VS,v.z*VS);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.setColorAt(i,v.color)});
+mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;mesh.position.y=-2;scene.add(mesh);
+const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.5,0.4,0.85);
+bloom.threshold=0.2;bloom.strength=1.2;bloom.radius=0.5;composer.addPass(bloom);
+const clock=new THREE.Clock();let angle=0;
+function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();angle+=0.002;camera.position.x=32*Math.sin(angle);camera.position.z=32*Math.cos(angle);camera.position.y=24+Math.sin(t*0.3)*2;camera.lookAt(0,0,0);mesh.position.y=-2+Math.sin(t*0.5)*0.5;mesh.rotation.x=Math.sin(t*0.3)*0.05;sl.intensity=150+Math.sin(t*10)*20;composer.render()}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
+animate();
+</script>
+</body>
+</html>
