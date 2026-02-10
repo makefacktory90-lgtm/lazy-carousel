@@ -210,6 +210,24 @@
 </head>
 <body>
 
+<!-- PASSWORD GATE -->
+<div id="passGate" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#050508;display:flex;align-items:center;justify-content:center;text-align:center;">
+    <div style="max-width:380px;padding:40px 24px;">
+        <div style="font-size:48px;margin-bottom:24px;">&#x1F512;</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:800;color:#F5F0E8;margin-bottom:8px;">Система Ленивого Контента</h2>
+        <p style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:#A8A29E;margin-bottom:32px;">Введите пароль из письма после оплаты</p>
+        <input id="passInput" type="password" placeholder="Пароль" style="width:100%;padding:14px 20px;border-radius:12px;border:2px solid rgba(58,58,60,0.6);background:rgba(28,28,30,0.85);color:#F5F0E8;font-family:'Space Grotesk',sans-serif;font-size:16px;text-align:center;outline:none;margin-bottom:16px;" onkeydown="if(event.key==='Enter')checkPass()">
+        <button onclick="checkPass()" style="width:100%;padding:14px;border-radius:12px;border:none;background:#D4736E;color:#1C1C1E;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">Войти</button>
+        <p id="passError" style="font-family:'Space Grotesk',sans-serif;font-size:13px;color:#D4736E;margin-top:16px;display:none;">Неверный пароль</p>
+        <p style="font-family:'Space Grotesk',sans-serif;font-size:12px;color:#6B6560;margin-top:24px;">Ещё не купили? <a href="https://makefacktory90-lgtm.github.io/carousel-lead-magnet/" style="color:#D4736E;text-decoration:none;">Узнать о курсе</a></p>
+    </div>
+</div>
+<script>
+var PASS_HASH='c2Nhcm91c2VsMjAyNg==';
+function checkPass(){var p=document.getElementById('passInput').value;if(btoa(p)===PASS_HASH){localStorage.setItem('lc_auth','1');document.getElementById('passGate').style.display='none'}else{document.getElementById('passError').style.display='block';document.getElementById('passInput').style.borderColor='#D4736E'}}
+if(localStorage.getItem('lc_auth')==='1'){document.getElementById('passGate').style.display='none'}
+</script>
+
 <!-- NAV -->
 <nav class="nav" id="nav">
     <a href="#day1">День 1</a>
@@ -1221,6 +1239,7 @@ No additional words. No typography distortion.</div>
     <div class="footer">
         <div class="container">
             <a href="https://instagram.com/ira_and_ai" target="_blank">@ira_and_ai</a> &mdash; Система Ленивого Контента
+            <p style="margin-top: 12px; font-size: 11px; color: #4a4540;">Гарантированный доступ 30 дней с момента покупки. Далее &mdash; пока курс поддерживается.</p>
         </div>
     </div>
 
