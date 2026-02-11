@@ -191,6 +191,37 @@
         /* Day result box */
         .day-result { display: flex; align-items: center; gap: 10px; background: rgba(212,115,110,0.06); border: 1px solid rgba(212,115,110,0.15); border-radius: 10px; padding: 14px 18px; font-size: 14px; color: var(--coral); font-weight: 600; margin-bottom: 32px; }
 
+        /* Compact timeline */
+        .timeline-compact { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 24px; border-left: 3px solid var(--sage); overflow: hidden; }
+        .timeline-compact summary { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sage); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; list-style: none; user-select: none; }
+        .timeline-compact summary::-webkit-details-marker { display: none; }
+        .timeline-compact summary::after { content: '▾'; margin-left: auto; transition: transform 0.2s; font-size: 14px; }
+        .timeline-compact[open] summary::after { transform: rotate(180deg); }
+        .timeline-compact .tl-links { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+        .timeline-compact .tl-links a { color: var(--cream-dim); text-decoration: none; transition: color 0.2s; }
+        .timeline-compact .tl-links a:hover { color: var(--cream); }
+        .timeline-compact .tl-links .tc { color: var(--coral); font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-right: 6px; }
+
+        /* Quiz */
+        .quiz-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; margin-top: 32px; margin-bottom: 8px; border-left: 3px solid var(--coral); }
+        .quiz-card h4 { font-size: 12px; color: var(--coral); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+        .quiz-q { display: none; animation: quizFade 0.3s; }
+        .quiz-q.active { display: block; }
+        .quiz-q .q-num { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 6px; }
+        .quiz-q p { font-size: 15px; color: var(--cream); font-weight: 600; margin-bottom: 10px; }
+        .quiz-btn { display: block; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 6px; background: rgba(58,58,60,0.3); border: 1px solid var(--border); border-radius: 8px; color: var(--cream-dim); font-family: 'Space Grotesk', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .quiz-btn:hover { background: rgba(58,58,60,0.5); border-color: rgba(212,115,110,0.4); }
+        .quiz-btn.correct { background: rgba(122,158,126,0.25); border-color: var(--sage); color: var(--sage); pointer-events: none; }
+        .quiz-btn.wrong { background: rgba(212,115,110,0.1); border-color: rgba(212,115,110,0.2); opacity: 0.5; pointer-events: none; }
+        .quiz-btn.dim { opacity: 0.4; pointer-events: none; }
+        .quiz-result { display: none; text-align: center; padding: 12px 0; animation: quizFade 0.3s; }
+        .quiz-result.active { display: block; }
+        .quiz-score { font-size: 32px; font-weight: 800; color: var(--coral); }
+        .quiz-msg { font-size: 14px; color: var(--cream-dim); margin-top: 6px; }
+        .quiz-retry { margin-top: 10px; padding: 8px 20px; background: transparent; border: 1px solid var(--coral); color: var(--coral); font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .quiz-retry:hover { background: rgba(212,115,110,0.1); }
+        @keyframes quizFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
         /* ============ RESPONSIVE ============ */
         @media (max-width: 600px) {
             .hero { min-height: 90vh; }
@@ -347,9 +378,30 @@ if(localStorage.getItem('lc_auth')==='1'){document.getElementById('passGate').st
 
             <!-- Видео 1: ПЕРВЫМ -->
             <p style="font-size: 14px; color: var(--sage); font-weight: 600; margin-bottom: 12px;">Видеоурок: весь процесс от начала до конца (посмотрите первым)</p>
-            <div class="video-container" style="margin-bottom: 32px;">
+            <div class="video-container" style="margin-bottom: 16px;">
                 <iframe src="https://www.youtube.com/embed/i6usYY46K30" title="Урок 1: Базовый" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
+
+            <details class="timeline-compact">
+                <summary>Таймкоды · 15 глав</summary>
+                <div class="tl-links">
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=0s" target="_blank"><span class="tc">00:00</span>Введение и пример клиента</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=63s" target="_blank"><span class="tc">01:03</span>Поиск боли через CustDev-агента</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=245s" target="_blank"><span class="tc">04:05</span>Резюме: две боли найдены</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=353s" target="_blank"><span class="tc">05:53</span>Начинаем создавать карусель</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=424s" target="_blank"><span class="tc">07:04</span>Выбираем лучшую тему</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=547s" target="_blank"><span class="tc">09:07</span>Промт для визуальной метафоры</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=674s" target="_blank"><span class="tc">11:14</span>Выбрали метафору: кристалл</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=748s" target="_blank"><span class="tc">12:28</span>Получаем тексты и промты</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=797s" target="_blank"><span class="tc">13:17</span>Генерация картинок: NanoBanana</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1004s" target="_blank"><span class="tc">16:44</span>Второй способ: Higgsfield</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1044s" target="_blank"><span class="tc">17:24</span>Третий способ: ChatGPT DALL-E</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1273s" target="_blank"><span class="tc">21:13</span>Дорабатываем картинки по фидбэку</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1473s" target="_blank"><span class="tc">24:33</span>Собираем карусель в Instadobry</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1652s" target="_blank"><span class="tc">27:32</span>Готовая карусель: результат</a>
+                    <a href="https://www.youtube.com/watch?v=i6usYY46K30&t=1741s" target="_blank"><span class="tc">29:01</span>Альтернатива: шаблоны Figma</a>
+                </div>
+            </details>
 
             <div class="intro-block">
                 <p>Посмотрели? Теперь повторяем. <span class="hl">Копируете промпт &rarr; вставляете в нейросеть &rarr; заменяете [СКОБКИ] на своё.</span></p>
@@ -477,6 +529,50 @@ if(localStorage.getItem('lc_auth')==='1'){document.getElementById('passGate').st
                     <tr><td><a href="https://www.figma.com" target="_blank">Figma</a></td><td>Шаблон один раз &mdash; потом дублируете</td></tr>
                     <tr><td><a href="https://gamma.app/signup?r=9nmr42f6fh905k2" target="_blank">Gamma</a></td><td>Быстро, красиво, есть бесплатный уровень</td></tr>
                 </table>
+            </div>
+
+            <div class="quiz-card" data-score="0">
+                <h4>Проверьте себя: День 1</h4>
+                <div class="quiz-q active">
+                    <div class="q-num">1 / 5</div>
+                    <p>С чего начинается создание карусели?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">С выбора шрифтов</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">С поиска боли аудитории</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">С генерации картинок</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">2 / 5</div>
+                    <p>Сколько слайдов оптимально для карусели?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">3&ndash;5</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">8&ndash;10</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">15&ndash;20</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">3 / 5</div>
+                    <p>Что должен делать первый слайд?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Представить автора</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Остановить скролл (хук)</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Показать цену</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">4 / 5</div>
+                    <p>&laquo;Женщина с ноутбуком и мёртвой улыбкой&raquo; &mdash; это пример...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Хорошего стока</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Визуальной метафоры</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Того, как делать не надо</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">5 / 5</div>
+                    <p>Визуальная метафора &mdash; это...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Буквальная иллюстрация темы</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Неочевидная ассоциация, передающая смысл</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Логотип на каждом слайде</button>
+                </div>
+                <div class="quiz-result">
+                    <div class="quiz-score"></div>
+                    <div class="quiz-msg"></div>
+                    <button class="quiz-retry" onclick="quizReset(this)">Пройти ещё раз</button>
+                </div>
             </div>
         </div>
     </section>
@@ -981,6 +1077,50 @@ No additional words. No typography distortion.</div>
                     </ul>
                 </div>
             </div>
+
+            <div class="quiz-card" data-score="0">
+                <h4>Проверьте себя: День 2</h4>
+                <div class="quiz-q active">
+                    <div class="q-num">1 / 5</div>
+                    <p>&laquo;Скользкая горка&raquo; Шугермана &mdash; это когда...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Каждый слайд &mdash; незавершённый гештальт, мозг листает дальше</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Текст написан красивым шрифтом</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Карусель сделана из мемов</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">2 / 5</div>
+                    <p>Формула промпта для картинки:</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">&laquo;Красиво, пожалуйста&raquo;</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Что + Где + Свет + Стиль + Детали</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Описание + хештеги</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">3 / 5</div>
+                    <p>Зачем нужен Style DNA?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Создать логотип</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Разобрать стиль референса и повторить</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Написать текст карусели</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">4 / 5</div>
+                    <p>&laquo;shot on Kodak Portra 400&raquo; в промпте даёт:</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Мягкие цвета, плёнку</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Чёрно-белое фото</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Неоновую подсветку</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">5 / 5</div>
+                    <p>Перед публикацией обязательно:</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Проверить превью с телефона</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Показать маме</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Добавить 15 хештегов</button>
+                </div>
+                <div class="quiz-result">
+                    <div class="quiz-score"></div>
+                    <div class="quiz-msg"></div>
+                    <button class="quiz-retry" onclick="quizReset(this)">Пройти ещё раз</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1012,6 +1152,25 @@ No additional words. No typography distortion.</div>
             <div class="video-container" style="margin-bottom: 32px;">
                 <iframe src="https://www.youtube.com/embed/mMDr6kUFG98" title="Урок 2: Продвинутый" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
+
+            <details class="timeline-compact">
+                <summary>Таймкоды · 13 глав</summary>
+                <div class="tl-links">
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=0s" target="_blank"><span class="tc">00:00</span>Введение в финальный урок</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=22s" target="_blank"><span class="tc">00:22</span>Подготовка к работе с промтом</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=63s" target="_blank"><span class="tc">01:03</span>Загрузка промта и выбор нейросети</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=87s" target="_blank"><span class="tc">01:27</span>Данные об экспертности и аудитории</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=177s" target="_blank"><span class="tc">02:57</span>Загрузка визуального ДНК</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=225s" target="_blank"><span class="tc">03:45</span>Анализ референсов и стиля</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=269s" target="_blank"><span class="tc">04:29</span>Выбор темы карусели</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=319s" target="_blank"><span class="tc">05:19</span>Генерация сценария</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=384s" target="_blank"><span class="tc">06:24</span>Генерация тестового слайда</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=541s" target="_blank"><span class="tc">09:01</span>Корректировка стиля</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=620s" target="_blank"><span class="tc">10:20</span>Сохранение базового промта</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=687s" target="_blank"><span class="tc">11:27</span>Генерация всех слайдов</a>
+                    <a href="https://www.youtube.com/watch?v=mMDr6kUFG98&t=795s" target="_blank"><span class="tc">13:15</span>Итоги и рекомендации</a>
+                </div>
+            </details>
 
             <!-- Идеи на месяц -->
             <div class="prompt-card">
@@ -1218,6 +1377,50 @@ No additional words. No typography distortion.</div>
                 </div>
             </div>
 
+            <div class="quiz-card" data-score="0">
+                <h4>Проверьте себя: День 3</h4>
+                <div class="quiz-q active">
+                    <div class="q-num">1 / 5</div>
+                    <p>Сколько тем просить у нейросети за раз?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">30 на месяц</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">5&ndash;7 на неделю</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">100 на год</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">2 / 5</div>
+                    <p>Какой микс тем нужен в неделю?</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Только продающие</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Боль + польза + личное + продажа</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Только мемы и развлечения</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">3 / 5</div>
+                    <p>Master Prompt ведёт через...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">5 этапов пошагово</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">1 этап &mdash; сразу всё</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">10 этапов</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">4 / 5</div>
+                    <p>Агент-шпион нужен, чтобы...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Воровать чужой контент</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Скопировать механику, а не форму</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Следить за конкурентами</button>
+                </div>
+                <div class="quiz-q">
+                    <div class="q-num">5 / 5</div>
+                    <p>Core Style &mdash; это...</p>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Модный тренд сезона</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,true)">Визуальная формула для быстрого создания слайдов</button>
+                    <button class="quiz-btn" onclick="quizAnswer(this,false)">Цвет кнопки &laquo;Подписаться&raquo;</button>
+                </div>
+                <div class="quiz-result">
+                    <div class="quiz-score"></div>
+                    <div class="quiz-msg"></div>
+                    <button class="quiz-retry" onclick="quizReset(this)">Пройти ещё раз</button>
+                </div>
+            </div>
+
         </div>
     </section>
 
@@ -1280,6 +1483,44 @@ function downloadPrompts() {
     a.href = URL.createObjectURL(blob);
     a.download = 'sistema-lenivogo-kontenta-prompts.txt';
     a.click();
+}
+
+// Quiz
+function quizAnswer(btn, ok) {
+    var q = btn.closest('.quiz-q'), card = btn.closest('.quiz-card');
+    if (q.dataset.answered) return;
+    var btns = q.querySelectorAll('.quiz-btn');
+    if (ok) {
+        q.dataset.answered = '1';
+        btn.classList.add('correct');
+        btns.forEach(function(b) { if (b !== btn) b.classList.add('dim'); });
+        card.dataset.score = String((parseInt(card.dataset.score) || 0) + 1);
+        setTimeout(function() {
+            q.classList.remove('active');
+            var next = q.nextElementSibling;
+            if (next && next.classList.contains('quiz-q')) { next.classList.add('active'); }
+            else {
+                var res = card.querySelector('.quiz-result');
+                var s = parseInt(card.dataset.score || '0'), t = card.querySelectorAll('.quiz-q').length;
+                res.querySelector('.quiz-score').textContent = s + ' из ' + t;
+                var m = s <= 1 ? 'Пересмотрите материал' : s <= 3 ? 'Неплохо!' : s === 4 ? 'Почти идеально!' : 'Безупречно ☕';
+                res.querySelector('.quiz-msg').textContent = m;
+                res.classList.add('active');
+            }
+        }, 600);
+    } else {
+        btn.classList.add('wrong');
+    }
+}
+function quizReset(btn) {
+    var c = btn.closest('.quiz-card');
+    c.dataset.score = '0';
+    c.querySelectorAll('.quiz-q').forEach(function(q, i) {
+        q.classList.toggle('active', i === 0);
+        delete q.dataset.answered;
+        q.querySelectorAll('.quiz-btn').forEach(function(b) { b.className = 'quiz-btn'; });
+    });
+    c.querySelector('.quiz-result').classList.remove('active');
 }
 
 // Nav + download bar
